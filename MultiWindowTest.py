@@ -1,7 +1,5 @@
 from PyQt5.QtWidgets import *
-#from sys import stderr, stdout
-import paramiko
-import time
+import paramiko, time, sys, os.path
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -15,20 +13,13 @@ uName = ''
 class MainWindow(QWidget):
 	global uName
 	global currentDirectory
-	def __init__(self):
+	def __init__(self, parent = None):
 		print('MainWindow\n')
-		super().__init__()
-		self.initMain()
+		super(MainWindow, self).__init__(parent)
+		self.initMain(self)
 
-	def logOut(self):
-		self.coordFileSelect.clear()
-		self.inputFileSelect.clear()
-		self.outputFileSelect.clear()
-		self.topFileSelect.clear()
-		self.refFileSelect.clear()
-		self.rstFileSelect.clear()
-		self.outputWindow.clear()
-		self.dirSelect.clear()
+	def logOut(self): #clearing the fields is not needed
+		print('Logout called\n')
 		client.close()
 
 	def newLocation(self):
@@ -58,6 +49,7 @@ class MainWindow(QWidget):
 		self.changeButton.clicked.connect(self.newLocation)
 
 		self.outputWindow = QTextEdit()
+		self.outputWindow.setReadOnly(True)
 		grid.addWidget(self.outputWindow, 9, 0, 3, 2)
 
 		self.inputFileSelect = QComboBox()
@@ -105,8 +97,6 @@ class MainWindow(QWidget):
 		self.currentDirLabel = QLabel()
 		grid.addWidget(self.currentDirLabel, 1, 2, 1, 1)
 
-		self.show()
-		self.listFiles()
 
 	def organizeFiles(self, outputList):
 		print('organize files\n')
@@ -204,18 +194,6 @@ class MainWindow(QWidget):
 			self.outputWindow.append(" {} ".format(line.strip('\n')))
 		#Call organize files passing in new list of files
 		self.organizeFiles(outputList)
-	
-	def newLocation():
-		self.coordFileLabel.clear()
-		self.inputFileSelect.clear()
-		self.outputFileSelect.clear()
-		self.topFileSelect.clear()
-		self.refFileSelect.clear()
-		self.rstFileSelect.clear()
-		self.outputWindow.clear()
-		newLoc = self.dirSelect.currentText()
-		print('new location: ', str(newLoc).rstrip('\n\r'), '\n')
-		self.changeDirectory(self.newLoc)
 
 
 class LoginWindow(QWidget):
@@ -227,9 +205,9 @@ class LoginWindow(QWidget):
 	def get_password(self):
 		return self.passwordInput.text()
 
-	def __init__(self):
-		super().__init__()
-		self.initUI()
+	def __init__(self, parent = None):
+		super(LoginWindow, self).__init__(parent)
+		self.initUI(self)
 	
 	def callConnect(self):
 		uName = self.get_user_name()
@@ -259,18 +237,20 @@ class LoginWindow(QWidget):
 
 		self.setLayout(grid)
 		self.setWindowTitle('Log In')
-		self.show()
 
 	def sshConnect(self, uName, pWord):
 		print('sshConnect\n')
-		client.connect('cos-d226275a.static.uvu.edu', username=uName, password=pWord)
-		time.sleep(1)
-		#listFiles()
-		#passwordInput.clear()
-		print('attempt close\n')
-		self.close()
-		print('Close success, calling next\n')
-		next=MainWindow()
+		try:
+			client.connect('cos-d226275a.static.uvu.edu', username=uName, password=pWord)
+		except:
+			print("Incorrect username or password. Please try again")
+		else:
+			time.sleep(1)
+			#listFiles()
+			#passwordInput.clear()
+			self.mainWin = MainWindow()
+			self.mainWin.listFiles()
+			self.mainWin.show()
 
 if __name__ == '__main__':
 	#outButton.clicked.connect(logOut)
@@ -279,6 +259,7 @@ if __name__ == '__main__':
 	app = QApplication([])
 	app.setStyle('GTK+')
 	login = LoginWindow()
+	login.show()
 	#window.setLayout(grid)
 	#window.show()
-	app.exec_()
+	sys.exit(app.exec_())
