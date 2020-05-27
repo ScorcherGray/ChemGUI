@@ -1,4 +1,5 @@
 from PyQt5.QtWidgets import *
+from PyQt5 import QtCore
 import paramiko, time, sys, os.path
 
 client = paramiko.SSHClient()
@@ -13,14 +14,25 @@ uName = ''
 class MainWindow(QWidget):
 	global uName
 	global currentDirectory
-	def __init__(self, parent = None):
+
+	switch_window = QtCore.pyqtSignal()
+
+	def __init__(self):
 		print('MainWindow\n')
-		super(MainWindow, self).__init__(parent)
-		self.initMain(self)
+		super().__init__()
+		self.initMain()
+		if uName == '':
+			login = LoginWindow()
+			login.show()
 
 	def logOut(self): #clearing the fields is not needed
 		print('Logout called\n')
 		client.close()
+		self.switch_window.emit()
+
+	def quit(self):
+		client.close()
+		sys.exit()
 
 	def newLocation(self):
 		self.coordFileLabel.clear()
@@ -38,11 +50,15 @@ class MainWindow(QWidget):
 		print('creating window\n')
 		grid = QGridLayout()
 		
-		self.windowTitle=str(uName) + " Remote File Access"
+		self.setWindowTitle(str(uName) + " Remote File Access")
 
 		self.outButton = QPushButton('Log Out')
 		grid.addWidget(self.outButton, 3, 3, 1, 1)
 		self.outButton.clicked.connect(self.logOut)
+
+		self.closeButton = QPushButton('Close')
+		grid.addWidget(self.closeButton, 4, 3, 1, 1)
+		self.closeButton.clicked.connect(self.quit)
 
 		self.changeButton = QPushButton('GO!')
 		grid.addWidget(self.changeButton, 8, 3, 1, 2)
@@ -86,7 +102,7 @@ class MainWindow(QWidget):
 		grid.addWidget(self.refFileLabel, 7, 0, 1, 1)
 
 		self.dirLabel = QLabel('Current working directory: ')
-		grid.addWidget(self.dirLabel, 0, 2, 1, 1)
+		grid.addWidget(self.dirLabel, 0, 0, 1, 1)
 
 		self.changeLabel = QLabel('Change directory: ')
 		grid.addWidget(self.changeLabel, 8, 0, 1, 1)
@@ -95,7 +111,9 @@ class MainWindow(QWidget):
 		grid.addWidget(self.dirSelect, 8, 1, 1, 2)
 
 		self.currentDirLabel = QLabel()
-		grid.addWidget(self.currentDirLabel, 1, 2, 1, 1)
+		grid.addWidget(self.currentDirLabel, 0, 1, 1, 1)
+
+		self.setLayout(grid)
 
 
 	def organizeFiles(self, outputList):
@@ -179,13 +197,13 @@ class MainWindow(QWidget):
 		self.getDirectory()
 		self.organizeFiles(outputList)
 
-	def changeDirectory(newLoc):
+	def changeDirectory(self, newLoc):
 		global currentDirectory
 		currentDirectory = newLoc
 		print('changing directory to: ', str(currentDirectory).rstrip('\n\r'), '\n')
 		stdin, stdout, stderr = client.exec_command('cd ' + str(newLoc).rstrip('\n\r') + '; ls')
 		#Populate new directory list
-		self.populateDirSelect(currentDirectory)
+		#self.populateDirSelect(currentDirectory) # Shouldn't need to re-populate the directory listing since
 		#populate list of files of 'new directory'
 		outputList.clear()
 		self.outputWindow.clear()
@@ -198,16 +216,16 @@ class MainWindow(QWidget):
 
 class LoginWindow(QWidget):
 	global uName
-	
+	switch_window = QtCore.pyqtSignal()
 	def get_user_name(self):
 		return self.userInput.text()
 
 	def get_password(self):
 		return self.passwordInput.text()
 
-	def __init__(self, parent = None):
-		super(LoginWindow, self).__init__(parent)
-		self.initUI(self)
+	def __init__(self):
+		super().__init__()
+		self.initUI()
 	
 	def callConnect(self):
 		uName = self.get_user_name()
@@ -245,21 +263,29 @@ class LoginWindow(QWidget):
 		except:
 			print("Incorrect username or password. Please try again")
 		else:
-			time.sleep(1)
-			#listFiles()
-			#passwordInput.clear()
-			self.mainWin = MainWindow()
-			self.mainWin.listFiles()
-			self.mainWin.show()
+			self.switch_window.emit()
+
+class Controller:
+	def __init__(self):
+		pass
+	
+	def show_login(self):
+		self.login = LoginWindow()
+		self.login.switch_window.connect(self.show_main)
+		self.login.show()
+
+	def show_main(self):
+		self.mywindow = MainWindow()
+		self.mywindow.switch_window.connect(self.show_login)
+		self.login.close()
+		self.mywindow.listFiles()
+		self.mywindow.show()
 
 if __name__ == '__main__':
-	#outButton.clicked.connect(logOut)
-	#changeButton.clicked.connect(newLocation)
-
 	app = QApplication([])
 	app.setStyle('GTK+')
-	login = LoginWindow()
-	login.show()
-	#window.setLayout(grid)
-	#window.show()
+	controller = Controller()
+	controller.show_login()
+	if uName != '':
+		myWindow.listFiles()
 	sys.exit(app.exec_())
